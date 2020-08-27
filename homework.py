@@ -10,21 +10,16 @@ class Calculator:
     def add_record(self, record):
         self.records.append(record)
 
-    def get_today_stats(self, date=None):
-        if date is None:
-            today = dt.datetime.now().date()
-        else:
-            if isinstance(date, str):
-                today = dt.datetime.strptime(date, '%d.%m.%Y').date()
-            else:
-                today = date
+    def get_today_stats(self):
+        today = dt.date.today() 
         return sum([rec.amount for rec in self.records if today == rec.date])
 
     def get_week_stats(self):
         today = dt.datetime.now().date()
-        days_count = [today - dt.timedelta(days=day) for day in range(7)]
-        return sum([self.get_today_stats(days_count[day]) \
-            for day in range(7)])
+        sevendaysago = today - dt.timedelta(days=7)
+        self.week_count = sum([count.amount for count in self.records 
+                              if sevendaysago <= count.date <= today])
+        return self.week_count
 
     def get_day_limit(self):
         return self.limit - self.get_today_stats()
@@ -34,36 +29,50 @@ class CaloriesCalculator(Calculator):
     def get_calories_remained(self):
         balance = self.get_day_limit()
         if balance > 0:
-            return(f"Сегодня можно съесть что-нибудь ещё, \
-но с общей калорийностью не более {balance} кКал")
+            return ("Сегодня можно съесть что-нибудь "
+             f"ещё, но с общей калорийностью не более {balance} кКал")
         else:
             return "Хватит есть!"
 
 
-class CashCalculator(Calculator):
-    EURO_RATE = 82.0
-    USD_RATE = 71.0
+class CashCalculator(Calculator): 
+    money_dict = {"rub" : ["руб", 1],
+                  "usd" : ["USD", 71.0],
+                  "eur" : ["Euro", 82.0],
+                 }      
+
+    def _init_(self, x=82.0, y=71.0):
+        self.EURO_RATE = x
+        self.USD_RATE = y
+    @property
+    def EURO_RATE(self):
+        return self.money_dict["eur"][1]
+    @EURO_RATE.setter
+    def EURO_RATE(self, value):
+        self.money_dict["eur"][1] = value
+    @property
+    def USD_RATE(self):
+        return self.money_dict["usd"][1]
+    @USD_RATE.setter
+    def USD_RATE(self, value):
+        self.money_dict["usd"][1] = value     
+
     def get_currency(self, currency):
-        if currency == "usd":
-            return self.USD_RATE
-        if currency == "eur":
-            return self.EURO_RATE
-        return 1.0
-    
-    money_dict = {"rub" : "руб",
-                  "usd" : "USD",
-                  "eur" : "Euro"
-                 }
+        return self.money_dict[currency][1]
 
     def get_today_cash_remained(self, currency="rub"):
-        if currency not in self.money_dict.keys():
+        if not currency in self.money_dict.keys():
             return None
-        b = self.money_dict[currency]
-        a = round(self.get_day_limit() / self.get_currency(currency), 2)
-        if a == 0.0: return "Денег нет, держись"
-        if a > 0.0: 
-            return f"На сегодня осталось {a} {b}"
-        return f"Денег нет, держись: твой долг - {abs(a)} {b}"
+        namecurrency = self.money_dict[currency][0]
+        cashlim = self.get_day_limit()
+        if cashlim == 0.0:
+            return "Денег нет, держись"
+        cashlim = round(cashlim / self.get_currency(currency), 2)
+        if cashlim > 0.0: 
+            return f"На сегодня осталось {cashlim} {namecurrency}"
+
+        cashlim = abs(cashlim)
+        return f"Денег нет, держись: твой долг - {cashlim} {namecurrency}"
 
 
 class Record:
